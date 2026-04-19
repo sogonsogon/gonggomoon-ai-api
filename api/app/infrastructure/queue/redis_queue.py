@@ -8,11 +8,11 @@ from app.application.dto.dto import (
     InterviewStrategyGenerationMessage,
     PortfolioStrategyGenerationMessage,
 )
-from app.application.ports.ports import JobQueuePort
+from app.application.ports.ports import PullJobQueuePort
 from app.core.enums import JobType
 
 
-class RedisJobQueue(JobQueuePort):
+class RedisJobQueue(PullJobQueuePort):
     def __init__(self, redis_url: str, queue_key: str = "ai:jobs") -> None:
         self.client = Redis.from_url(redis_url, decode_responses=True)
         self.queue_key = queue_key

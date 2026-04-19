@@ -1,5 +1,7 @@
 from app.core.config import get_settings
+from app.application.ports.ports import JobQueuePort
 from app.infrastructure.queue.redis_queue import RedisJobQueue
+from app.infrastructure.queue.cloud_tasks_queue import CloudTasksJobQueue
 from app.infrastructure.db.session import create_session_factory
 from app.infrastructure.db.extracted_experience_repository import SqlAlchemyExtractedExperienceRepository
 from app.application.services.experiece_extraction_service import ExperienceExtractionService
@@ -10,12 +12,25 @@ from app.application.services.post_analysis_service import PostAnalysisService
 settings = get_settings()
 session_factory = create_session_factory(settings.database_url)
 
-##### API 서버 관련 의존성 주입 ######
-queue = RedisJobQueue(
-    redis_url=settings.redis_url,
-    queue_key=settings.redis_queue_key,
-)
+##### Queue 구현체 선택 ######
+def _create_queue(s=settings) -> JobQueuePort:
+    if s.queue_provider == "cloud_tasks":
+        return CloudTasksJobQueue(
+            project=s.cloud_tasks_project,
+            location=s.cloud_tasks_location,
+            queue_name=s.cloud_tasks_queue_name,
+            worker_url=s.cloud_tasks_worker_url,
+            service_account_email=s.cloud_tasks_service_account_email,
+        )
+    # 기본값: Redis
+    return RedisJobQueue(
+        redis_url=s.redis_url,
+        queue_key=s.redis_queue_key,
+    )
 
+queue: JobQueuePort = _create_queue()
+
+##### API 서버 관련 의존성 주입 ######
 extracted_experience_repository = SqlAlchemyExtractedExperienceRepository(session_factory=session_factory)
 
 experience_extraction_service = ExperienceExtractionService(
