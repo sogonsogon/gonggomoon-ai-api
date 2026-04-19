@@ -1,12 +1,13 @@
 # API 서버에서 AI 서버로 작업 제출 및 상태 조회를 위한 라우터
 
-from fastapi import APIRouter, Header, status
+from fastapi import APIRouter, Header, HTTPException, status
 from app.api.dependencies.auth import verify_internal_api_key
 from app.api.dto.experience_extraction import ExperienceExtractionRequest
 from app.api.dto.portfolio_strategy_generation import PortfolioStrategyGenerationRequest
 from app.api.dto.interview_strategy_generation import InterviewStrategyGenerationRequest
 from app.api.dto.post_analysis_request import PostAnalysisRequest
 from app.application.container import queue, experience_extraction_service, portfolio_strategy_generation_service, interview_strategy_generation_service, post_analysis_service
+from app.application.ports.ports import PullJobQueuePort
 
 jobs_router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -48,10 +49,15 @@ def analyze_post(
     verify_internal_api_key(x_internal_api_key)
     return post_analysis_service.enqueue_post_analysis(request)
 
-# 큐에 쌓인 작업 수를 조회하는 엔드포인트 - AI 서버에서 작업 처리 상태 모니터링 용도
+# 큐에 쌓인 작업 수를 조회하는 엔드포인트 - Redis 등 pull 방식 큐에서만 지원됨
 @jobs_router.get("/queue-size", status_code=status.HTTP_200_OK)
 def get_queue_size(
     x_internal_api_key: str | None = Header(default=None),
 ) -> dict[str, int]:
     verify_internal_api_key(x_internal_api_key)
+    if not isinstance(queue, PullJobQueuePort):
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Queue size is not supported for the current queue provider.",
+        )
     return {"queue_size": queue.size()}
