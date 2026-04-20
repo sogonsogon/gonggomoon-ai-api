@@ -21,6 +21,7 @@ def _create_queue(s=settings) -> JobQueuePort:
             queue_name=s.cloud_tasks_queue_name,
             worker_url=s.cloud_tasks_worker_url,
             service_account_email=s.cloud_tasks_service_account_email,
+            internal_api_key=s.internal_api_key,
         )
     # 기본값: Redis
     return RedisJobQueue(

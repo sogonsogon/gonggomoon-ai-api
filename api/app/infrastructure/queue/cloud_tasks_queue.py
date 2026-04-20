@@ -17,19 +17,25 @@ class CloudTasksJobQueue(JobQueuePort):
         queue_name: str,
         worker_url: str,
         service_account_email: str | None = None,
+        internal_api_key: str | None = None,
     ) -> None:
         self.client = tasks_v2.CloudTasksClient()
         self.parent = self.client.queue_path(project, location, queue_name)
         self.worker_url = worker_url
         self.service_account_email = service_account_email
+        self.internal_api_key = internal_api_key
 
     def enqueue(self, message: BaseJobMessage) -> None:
         payload = message.model_dump_json().encode("utf-8")
 
+        headers = {"Content-Type": "application/json"}
+        if self.internal_api_key:
+            headers["x-internal-api-key"] = self.internal_api_key
+
         http_request: dict = {
             "http_method": tasks_v2.HttpMethod.POST,
             "url": self.worker_url,
-            "headers": {"Content-Type": "application/json"},
+            "headers": headers,
             "body": payload,
         }
 
